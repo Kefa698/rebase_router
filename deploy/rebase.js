@@ -10,8 +10,8 @@ module.exports = async ({ getNamedAccounts, deployments }) => {
         : VERIFICATION_BLOCK_CONFIRMATIONS
 
     log("----------------------------------------------------")
-    const factory = ""
-    const WETH = ""
+    const factory = "0xA7b8Bb12ca66C42006c78bF1FAAC6489e3C6c9bC"
+    const WETH = "0xca5D80d51D358D206adc2126Dd8D061A725b39a6"
     const arguments = [factory, WETH]
     const rebase = await deploy("RebaseRouter", {
         from: deployer,
