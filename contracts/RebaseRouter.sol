@@ -5,7 +5,7 @@ import "./interfaces/IRebaseRouter02.sol";
 import "./interfaces/IRebaseFactory.sol";
 import "./libraries/RebaseLibrary.sol";
 import "./libraries/SafeMath.sol";
-import './libraries/TransferHelper.sol';
+import "./libraries/TransferHelper.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IWETH.sol";
 
@@ -73,13 +73,16 @@ contract RebaseRouter is IRebaseRouter02 {
         virtual
         override
         ensure(deadline)
-        returns (
-            uint256 amountA,
-            uint256 amountB,
-            uint256 liquidity
-        )
+        returns (uint256 amountA, uint256 amountB, uint256 liquidity)
     {
-        (amountA, amountB) = _addLiquidity(tokenA, tokenB, amountADesired, amountBDesired, amountAMin, amountBMin);
+        (amountA, amountB) = _addLiquidity(
+            tokenA,
+            tokenB,
+            amountADesired,
+            amountBDesired,
+            amountAMin,
+            amountBMin
+        );
         address pair = RebaseLibrary.pairFor(factory, tokenA, tokenB);
         TransferHelper.safeTransferFrom(tokenA, msg.sender, pair, amountA);
         TransferHelper.safeTransferFrom(tokenB, msg.sender, pair, amountB);
@@ -99,11 +102,7 @@ contract RebaseRouter is IRebaseRouter02 {
         virtual
         override
         ensure(deadline)
-        returns (
-            uint256 amountToken,
-            uint256 amountETH,
-            uint256 liquidity
-        )
+        returns (uint256 amountToken, uint256 amountETH, uint256 liquidity)
     {
         (amountToken, amountETH) = _addLiquidity(
             token,
@@ -119,7 +118,8 @@ contract RebaseRouter is IRebaseRouter02 {
         assert(IWETH(WETH).transfer(pair, amountETH));
         liquidity = IRebasePair(pair).mint(to);
         // refund dust eth, if any
-        if (msg.value > amountETH) TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
+        if (msg.value > amountETH)
+            TransferHelper.safeTransferETH(msg.sender, msg.value - amountETH);
     }
 
     // **** REMOVE LIQUIDITY ****
@@ -179,7 +179,15 @@ contract RebaseRouter is IRebaseRouter02 {
         address pair = RebaseLibrary.pairFor(factory, tokenA, tokenB);
         uint256 value = approveMax ? uint256(-1) : liquidity;
         IRebasePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
-        (amountA, amountB) = removeLiquidity(tokenA, tokenB, liquidity, amountAMin, amountBMin, to, deadline);
+        (amountA, amountB) = removeLiquidity(
+            tokenA,
+            tokenB,
+            liquidity,
+            amountAMin,
+            amountBMin,
+            to,
+            deadline
+        );
     }
 
     function removeLiquidityETHWithPermit(
@@ -197,7 +205,14 @@ contract RebaseRouter is IRebaseRouter02 {
         address pair = RebaseLibrary.pairFor(factory, token, WETH);
         uint256 value = approveMax ? uint256(-1) : liquidity;
         IRebasePair(pair).permit(msg.sender, address(this), value, deadline, v, r, s);
-        (amountToken, amountETH) = removeLiquidityETH(token, liquidity, amountTokenMin, amountETHMin, to, deadline);
+        (amountToken, amountETH) = removeLiquidityETH(
+            token,
+            liquidity,
+            amountTokenMin,
+            amountETHMin,
+            to,
+            deadline
+        );
     }
 
     // **** REMOVE LIQUIDITY (supporting fee-on-transfer tokens) ****
@@ -209,7 +224,15 @@ contract RebaseRouter is IRebaseRouter02 {
         address to,
         uint256 deadline
     ) public virtual override ensure(deadline) returns (uint256 amountETH) {
-        (, amountETH) = removeLiquidity(token, WETH, liquidity, amountTokenMin, amountETHMin, address(this), deadline);
+        (, amountETH) = removeLiquidity(
+            token,
+            WETH,
+            liquidity,
+            amountTokenMin,
+            amountETHMin,
+            address(this),
+            deadline
+        );
         TransferHelper.safeTransfer(token, to, IERC20(token).balanceOf(address(this)));
         IWETH(WETH).withdraw(amountETH);
         TransferHelper.safeTransferETH(to, amountETH);
@@ -242,19 +265,23 @@ contract RebaseRouter is IRebaseRouter02 {
 
     // **** SWAP ****
     // requires the initial amount to have already been sent to the first pair
-    function _swap(
-        uint256[] memory amounts,
-        address[] memory path,
-        address _to
-    ) internal virtual {
+    function _swap(uint256[] memory amounts, address[] memory path, address _to) internal virtual {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0, ) = RebaseLibrary.sortTokens(input, output);
             uint256 amountOut = amounts[i + 1];
-            (uint256 amount0Out, uint256 amount1Out) =
-                input == token0 ? (uint256(0), amountOut) : (amountOut, uint256(0));
-            address to = i < path.length - 2 ? RebaseLibrary.pairFor(factory, output, path[i + 2]) : _to;
-            IRebasePair(RebaseLibrary.pairFor(factory, input, output)).swap(amount0Out, amount1Out, to, new bytes(0));
+            (uint256 amount0Out, uint256 amount1Out) = input == token0
+                ? (uint256(0), amountOut)
+                : (amountOut, uint256(0));
+            address to = i < path.length - 2
+                ? RebaseLibrary.pairFor(factory, output, path[i + 2])
+                : _to;
+            IRebasePair(RebaseLibrary.pairFor(factory, input, output)).swap(
+                amount0Out,
+                amount1Out,
+                to,
+                new bytes(0)
+            );
         }
     }
 
@@ -266,7 +293,10 @@ contract RebaseRouter is IRebaseRouter02 {
         uint256 deadline
     ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         amounts = RebaseLibrary.getAmountsOut(factory, amountIn, path);
-        require(amounts[amounts.length - 1] >= amountOutMin, "RebaseRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(
+            amounts[amounts.length - 1] >= amountOutMin,
+            "RebaseRouter: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
@@ -302,7 +332,10 @@ contract RebaseRouter is IRebaseRouter02 {
     ) external payable virtual override ensure(deadline) returns (uint256[] memory amounts) {
         require(path[0] == WETH, "RebaseRouter: INVALID_PATH");
         amounts = RebaseLibrary.getAmountsOut(factory, msg.value, path);
-        require(amounts[amounts.length - 1] >= amountOutMin, "RebaseRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(
+            amounts[amounts.length - 1] >= amountOutMin,
+            "RebaseRouter: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
         IWETH(WETH).deposit{value: amounts[0]}();
         assert(IWETH(WETH).transfer(RebaseLibrary.pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
@@ -338,7 +371,10 @@ contract RebaseRouter is IRebaseRouter02 {
     ) external virtual override ensure(deadline) returns (uint256[] memory amounts) {
         require(path[path.length - 1] == WETH, "RebaseRouter: INVALID_PATH");
         amounts = RebaseLibrary.getAmountsOut(factory, amountIn, path);
-        require(amounts[amounts.length - 1] >= amountOutMin, "RebaseRouter: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(
+            amounts[amounts.length - 1] >= amountOutMin,
+            "RebaseRouter: INSUFFICIENT_OUTPUT_AMOUNT"
+        );
         TransferHelper.safeTransferFrom(
             path[0],
             msg.sender,
@@ -363,12 +399,16 @@ contract RebaseRouter is IRebaseRouter02 {
         assert(IWETH(WETH).transfer(RebaseLibrary.pairFor(factory, path[0], path[1]), amounts[0]));
         _swap(amounts, path, to);
         // refund dust eth, if any
-        if (msg.value > amounts[0]) TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
+        if (msg.value > amounts[0])
+            TransferHelper.safeTransferETH(msg.sender, msg.value - amounts[0]);
     }
 
     // **** SWAP (supporting fee-on-transfer tokens) ****
     // requires the initial amount to have already been sent to the first pair
-    function _swapSupportingFeeOnTransferTokens(address[] memory path, address _to) internal virtual {
+    function _swapSupportingFeeOnTransferTokens(
+        address[] memory path,
+        address _to
+    ) internal virtual {
         for (uint256 i; i < path.length - 1; i++) {
             (address input, address output) = (path[i], path[i + 1]);
             (address token0, ) = RebaseLibrary.sortTokens(input, output);
@@ -378,14 +418,18 @@ contract RebaseRouter is IRebaseRouter02 {
             {
                 // scope to avoid stack too deep errors
                 (uint256 reserve0, uint256 reserve1, ) = pair.getReserves();
-                (uint256 reserveInput, uint256 reserveOutput) =
-                    input == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
+                (uint256 reserveInput, uint256 reserveOutput) = input == token0
+                    ? (reserve0, reserve1)
+                    : (reserve1, reserve0);
                 amountInput = IERC20(input).balanceOf(address(pair)).sub(reserveInput);
                 amountOutput = RebaseLibrary.getAmountOut(amountInput, reserveInput, reserveOutput);
             }
-            (uint256 amount0Out, uint256 amount1Out) =
-                input == token0 ? (uint256(0), amountOutput) : (amountOutput, uint256(0));
-            address to = i < path.length - 2 ? RebaseLibrary.pairFor(factory, output, path[i + 2]) : _to;
+            (uint256 amount0Out, uint256 amount1Out) = input == token0
+                ? (uint256(0), amountOutput)
+                : (amountOutput, uint256(0));
+            address to = i < path.length - 2
+                ? RebaseLibrary.pairFor(factory, output, path[i + 2])
+                : _to;
             pair.swap(amount0Out, amount1Out, to, new bytes(0));
         }
     }
@@ -475,23 +519,17 @@ contract RebaseRouter is IRebaseRouter02 {
         return RebaseLibrary.getAmountIn(amountOut, reserveIn, reserveOut);
     }
 
-    function getAmountsOut(uint256 amountIn, address[] memory path)
-        public
-        view
-        virtual
-        override
-        returns (uint256[] memory amounts)
-    {
+    function getAmountsOut(
+        uint256 amountIn,
+        address[] memory path
+    ) public view virtual override returns (uint256[] memory amounts) {
         return RebaseLibrary.getAmountsOut(factory, amountIn, path);
     }
 
-    function getAmountsIn(uint256 amountOut, address[] memory path)
-        public
-        view
-        virtual
-        override
-        returns (uint256[] memory amounts)
-    {
+    function getAmountsIn(
+        uint256 amountOut,
+        address[] memory path
+    ) public view virtual override returns (uint256[] memory amounts) {
         return RebaseLibrary.getAmountsIn(factory, amountOut, path);
     }
 }
