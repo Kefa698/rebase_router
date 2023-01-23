@@ -1,9 +1,6 @@
 async function main() {
-    const Accumulator = await ethers.getContractFactory("WETH")
-    const name = "Wrapped Ether"
-    const symbol = "WETH"
-    const arguments = [name, symbol]
-    // Start deployment, returning a promise that resolves to a contract object
+    const Accumulator = await ethers.getContractFactory("ERC20Token")
+
     const accumulator = await Accumulator.deploy()
     await accumulator.deployed()
     console.log("Contract deployed to address:", accumulator.address)
